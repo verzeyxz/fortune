@@ -1,0 +1,78 @@
+/* reviews.css */
+
+/* --- Container for the whole review section --- */
+#reviews {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+}
+
+.reviews-container {
+    max-width: 700px; /* จำกัดความกว้างเพื่อให้ดูเหมือนช่องคอมเมนต์ */
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem; /* ระยะห่างระหว่างแต่ละรีวิว */
+}
+
+/* --- Styling for a single review item --- */
+.review-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem; /* ระยะห่างระหว่างรูปโปรไฟล์กับกล่องคอมเมนต์ */
+}
+
+/* --- Profile picture --- */
+.review-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover; /* ป้องกันไม่ให้รูปบิดเบี้ยว */
+    flex-shrink: 0; /* ไม่ให้รูปโปรไฟล์หดลง */
+}
+
+/* --- Main content of the review (bubble + meta) --- */
+.review-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+}
+
+/* --- The "Facebook comment" bubble --- */
+.review-bubble {
+    background-color: #242526; /* สีพื้นหลังของคอมเมนต์ใน Dark Mode */
+    border-radius: 18px; /* ความโค้งของขอบ */
+    padding: 8px 12px;
+    width: fit-content; /* ทำให้กล่องมีความกว้างพอดีกับเนื้อหา */
+    max-width: 100%;
+}
+
+.review-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #E4E6EB; /* สีชื่อ */
+}
+
+.review-text {
+    font-size: 0.95rem;
+    color: #E4E6EB; /* สีข้อความ */
+    margin-top: 2px;
+    line-height: 1.4;
+    white-space: pre-wrap; /* ทำให้การขึ้นบรรทัดใหม่ (\n) แสดงผลถูกต้อง */
+}
+
+/* --- Metadata below the bubble (timestamp, stars) --- */
+.review-meta {
+    padding-left: 12px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    color: #B0B3B8; /* สีตัวอักษรจางๆ */
+}
+
+.review-stars {
+    color: #fdd835; /* สีดาว */
+    font-size: 0.9rem;
+}
