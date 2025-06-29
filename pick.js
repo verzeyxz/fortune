@@ -1,8 +1,14 @@
-document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', () => {
     // --- Constants & Configuration ---
+    // !!! SECURITY WARNING !!!
+    // For development/testing ONLY. Do NOT expose this key in a production environment.
+    // Your API key should be stored securely on a server and fetched by the client.
+    // Hardcoding it here makes it publicly accessible and can lead to misuse and unexpected charges.
+    const GEMINI_API_KEY = 'AIzaSyCen3mQP8GUgFG6n1wg5v1n9pkTpKMOGto'; // <-- Replace with your key for testing
+
     const DECK_LAYOUT_CONFIG = {
-        desktop: { cardsPerRow: 19, cardWidth: 90, overlapX: 40, rowHeight: 130 },
-        mobile: { cardsPerRow: 13, cardWidthRatio: 7, overlapRatio: 0.35, rowHeightRatio: 0.75 } // cardWidth will be containerWidth / 7, rowHeight will be cardHeight * 0.75
+        desktop: { cardsPerRow: 19, cardWidth: 90, overlapX: 40, rowHeight: 130, cardHeight: 135 },
+        mobile: { cardsPerRow: 13, cardWidthRatio: 8, overlapRatio: 0.4, rowHeightRatio: 0.6, cardHeightRatio: 1.5 }
     };
 
     // --- DOM Elements ---
@@ -10,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectionScreen = document.getElementById('selection-screen');
     const resultsScreen = document.getElementById('results-screen');
     const resultsGrid = document.getElementById('results-grid');
-    const resultControls = document.getElementById('result-controls');
     const cardGrid = document.getElementById('card-grid');
     const counterDiv = document.getElementById('counter');
     const confirmButton = document.getElementById('confirm-button');
@@ -82,128 +87,85 @@ document.addEventListener('DOMContentLoaded', () => {
      * Shuffles the tarot deck and triggers a re-render.
      */
     function shuffleAndRender() {
-        shuffledDeck = shuffle([...tarotDeck]);
-        renderDeck();
+        shuffledDeck = shuffle([...tarotDeck]); // Keep the shuffled deck in state
+        renderDeck(shuffledDeck);
     }
-    // --- [REPLACED] RENDER DECK FUNCTION FOR RESPONSIVE STAGGERED LAYOUT ---
-    function renderDeck() {
-        cardGrid.innerHTML = ''; 
-        const shuffledDeck = shuffle([...tarotDeck]);
+
+    /**
+     * Renders the deck of cards in a staggered, responsive layout.
+     * @param {Array} deckToRender - The array of card objects to render.
+     */
+    function renderDeck(deckToRender) {
+        if (!cardGrid) return;
+        cardGrid.innerHTML = '';
         const containerWidth = cardGrid.offsetWidth;
+        const isMobile = containerWidth < 768;
+        const config = isMobile ? DECK_LAYOUT_CONFIG.mobile : DECK_LAYOUT_CONFIG.desktop;
 
-        // --- ค่าที่ปรับได้สำหรับ Layout ---
-        const cardsPerRow = 19;
-        let cardWidth, overlapX, rowHeight;
+        // Calculate dimensions based on config
+        const cardsPerRow = config.cardsPerRow;
+        const cardWidth = isMobile ? containerWidth / config.cardWidthRatio : config.cardWidth;
+        const cardHeight = isMobile ? cardWidth * config.cardHeightRatio : config.cardHeight;
+        const overlapX = isMobile ? cardWidth * config.overlapRatio : config.overlapX;
+        const rowHeight = isMobile ? cardHeight * config.rowHeightRatio : config.rowHeight;
 
-        // --- กำหนดค่าตามขนาดหน้าจอ ---
-        if (containerWidth < 768) { // Mobile
-            // บนมือถือ ทำให้การ์ดมีขนาดเล็กลงและซ้อนกันมากขึ้นเพื่อให้พอดี
-            cardWidth = containerWidth / 8; // ขนาดการ์ดเป็นสัดส่วนของความกว้างจอ
-            overlapX = cardWidth * 0.4; // ซ้อนกัน 60% ของความกว้างการ์ด
-            rowHeight = cardWidth * (3/2) * 0.6; // ลดความสูงแถวให้ชิดกันขึ้น
-        } else { // Desktop
-            cardWidth = 90;
-            overlapX = 40;
-            rowHeight = 150;
-        }
-
-        // คำนวณความกว้างทั้งหมดของแถวไพ่เพื่อจัดให้อยู่กึ่งกลาง
+        // Center the whole block of cards
         const totalRowWidth = (cardsPerRow - 1) * overlapX + cardWidth;
         const startOffset = (containerWidth - totalRowWidth) / 2;
 
-        shuffledDeck.forEach((card, index) => {
+        const fragment = document.createDocumentFragment();
+        deckToRender.forEach((card, index) => {
             const cardContainer = document.createElement('div');
             cardContainer.className = 'card-container';
             cardContainer.dataset.id = card.id;
 
-            // คำนวณแถวและคอลัมน์
             const row = Math.floor(index / cardsPerRow);
             const col = index % cardsPerRow;
 
-            // คำนวณตำแหน่ง
-            const top = row * rowHeight;
-            const left = startOffset + (col * overlapX);
-            
-            // กำหนดสไตล์จาก JavaScript
             cardContainer.style.width = `${cardWidth}px`;
-            cardContainer.style.top = `${top}px`;
-            cardContainer.style.left = `${left}px`;
+            cardContainer.style.top = `${row * rowHeight}px`;
+            cardContainer.style.left = `${startOffset + (col * overlapX)}px`;
             cardContainer.style.zIndex = col;
             cardContainer.style.animationDelay = `${index * 20}ms`;
 
-            const cardBack = document.createElement('div');
-            cardBack.className = 'card-back';
-            cardContainer.appendChild(cardBack);
-
+            cardContainer.innerHTML = '<div class="card-back"></div>';
             cardContainer.addEventListener('click', () => toggleSelection(card.id));
-            
-            cardGrid.appendChild(cardContainer);
+            fragment.appendChild(cardContainer);
         });
+        cardGrid.appendChild(fragment);
     }
 
 
 
-
-function renderResults(isHistoryView = false) {
-        if (!resultsGrid || !resultControls) return;
+ function renderResults(isHistoryView = false) {
+        if (!resultsGrid) return;
         resultsGrid.innerHTML = '';
-        resultControls.innerHTML = '';
-        if (selectedCards.length <= 5) {
-            resultsGrid.style.gridTemplateColumns = `repeat(${selectedCards.length}, 1fr)`;
-        } else {
-            resultsGrid.style.gridTemplateColumns = 'repeat(5, 1fr)';
-            resultsGrid.style.gridTemplateRows = 'repeat(2, auto)';
-        }
-        selectedCards.forEach((cardId, index) => {
+
+        // ตั้งค่า layout ของ grid
+        const gridCols = selectedCards.length <= 5 ? selectedCards.length : 5;
+        resultsGrid.style.gridTemplateColumns = `repeat(${gridCols}, 1fr)`;
+
+        // สร้าง Element ของไพ่ทั้งหมด แต่ยังซ่อนไว้
+        selectedCards.forEach((cardId) => {
             const cardData = tarotDeck.find(c => c.id === cardId);
             if (cardData) {
-                const resultCard = document.createElement('div');
-                resultCard.className = 'result-card';
-                resultCard.style.animationDelay = `${index * 100}ms`;
-                resultCard.innerHTML = `<img src="${cardData.img}" alt="${cardData.name}"><p>${cardData.name}</p>`;
-                resultCard.addEventListener('click', () => openCardModal(cardId));
-                resultsGrid.appendChild(resultCard);
+                const cardWrapper = document.createElement('div');
+                cardWrapper.className = 'result-card'; // Wrapper for animation
+                
+                cardWrapper.innerHTML = `
+                    <div class="result-card-flipper" data-id="${cardId}">
+                        <div class="result-card-inner">
+                            <div class="result-card-face result-card-back"></div>
+                            <div class="result-card-face result-card-front" style="background-image: url('${cardData.img}')"></div>
+                        </div>
+                    </div>
+                    <p class="result-card-name">${cardData.name}</p>
+                `;
+                resultsGrid.appendChild(cardWrapper);
             }
         });
-        
-        if (isHistoryView) {
-            const backToProfileBtn = document.createElement('a');
-            backToProfileBtn.href = 'profile.php';
-            backToProfileBtn.className = 'confirm-btn';
-            backToProfileBtn.textContent = 'กลับสู่หน้าโปรไฟล์';
-            resultControls.appendChild(backToProfileBtn);
-        } else {
-            // สร้างปุ่มแบบไดนามิก
-            // IS_LOGGED_IN ถูกส่งมาจาก pick.php
-            if (typeof IS_LOGGED_IN !== 'undefined' && IS_LOGGED_IN) {
-                const saveReadingBtn = document.createElement('button');
-                saveReadingBtn.id = 'save-reading-btn';
-                saveReadingBtn.className = 'save-reading-btn';
-                saveReadingBtn.textContent = 'บันทึกผลคำทำนาย';
-                saveReadingBtn.addEventListener('click', handleSaveReading);
-                resultControls.appendChild(saveReadingBtn);
-            }
-            const saveImageBtn = document.createElement('button');
-            saveImageBtn.id = 'save-image-btn';
-            saveImageBtn.className = 'save-btn';
-            saveImageBtn.textContent = 'บันทึกเป็นรูปภาพ';
-            saveImageBtn.addEventListener('click', saveResultsAsImage);
-            resultControls.appendChild(saveImageBtn);
-            const resetButton = document.createElement('button');
-            resetButton.id = 'reset-button';
-            resetButton.className = 'confirm-btn';
-            resetButton.textContent = 'เลือกใหม่อีกครั้ง';
-            resetButton.addEventListener('click', () => { window.location.href = `pick.php?count=${maxSelections}`; });
-            resultControls.appendChild(resetButton);
-        }
-    }
 
-    // --- UI & STATE LOGIC ---
 
-    /**
-     * Toggles the selection state of a card.
-     * @param {string} cardId - The ID of the card to select/deselect.
-     */
     function toggleSelection(cardId) {
         const cardInGrid = document.querySelector(`.card-container[data-id="${cardId}"]`);
         const cardIndex = selectedCards.indexOf(cardId);
@@ -316,6 +278,8 @@ function renderResults(isHistoryView = false) {
     /**
      * Resets the selection by reloading the page with the current count.
      */
+
+
     function handleReset() {
         window.location.href = `pick.php?count=${maxSelections}`;
     }
@@ -458,7 +422,158 @@ function renderResults(isHistoryView = false) {
         });
     }
 
-    // --- INITIALIZATION ---
+ function typewriterEffect(element, text, callback) {
+        let i = 0;
+        let speed = 30;
+        element.innerHTML = '';
+        element.style.borderRight = '3px solid rgba(255, 255, 255, .75)';
+        function type() {
+            if (i < text.length) {
+                element.innerHTML += text.charAt(i);
+                const char = text.charAt(i);
+                if (char === ' ' || char === '\n' || char === '።') {
+                    speed = 30 + Math.random() * 50;
+                } else {
+                    speed = 20 + Math.random() * 20;
+                }
+                i++;
+                setTimeout(type, speed);
+            } else {
+                element.classList.add('typing-done');
+                if (callback) callback();
+            }
+        }
+        type();
+    }
+
+    async function handleAiInterpretation() {
+        const { value: userQuestion } = await Swal.fire({
+            title: 'คำถามถึง Oracle',
+            input: 'text',
+            inputLabel: 'โปรดระบุเรื่องที่คุณต้องการถามจากไพ่ชุดนี้',
+            inputPlaceholder: 'เช่น ความรัก, การงาน, การตัดสินใจ...',
+            showCancelButton: true,
+            confirmButtonText: 'ส่งคำถามและตีความไพ่',
+            cancelButtonText: 'ยกเลิก',
+            customClass: { popup: 'oracle-theme', title: 'oracle-theme', inputLabel: 'oracle-theme', input: 'swal2-input'},
+            inputValidator: (value) => {
+                if (!value) { return 'กรุณาใส่คำถามหรือหัวข้อที่ต้องการทราบ!'; }
+            }
+        });
+
+        if (userQuestion) {
+            Swal.fire({
+                title: 'Oracle กำลังมองลึกเข้าไปในกระแสแห่งโชคชะตา...',
+                html: '<div class="loader"></div>',
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                customClass: { popup: 'oracle-theme', title: 'oracle-theme' },
+            });
+
+            // The API key is now sourced from the constant at the top of the file.
+            const api_url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+
+            const cardNames = selectedCards.map(id => tarotDeck.find(c => c.id === id)?.name).filter(Boolean);
+            if (cardNames.length === 0) return; // Don't call API if no cards are selected
+            const card_list_string = cardNames.join(', ');
+            const prompt_message = `ในบทบาทของ 'Oracle Ref' นักพยากรณ์ไพ่ยิปซีผู้มีญาณวิเศษ จงตีความไพ่ที่ผู้ใช้เปิดได้: ${card_list_string} สำหรับคำถามที่ว่า: '${userQuestion}'. ให้เรียบเรียงเป็นบทสรุปที่กระชับ ได้ใจความ และตรงประเด็น ไม่ต้องอารัมภบท เน้นการเล่าเรื่องที่เชื่อมโยงกัน และจบด้วยคำแนะนำที่นำไปใช้ได้จริงเพียง 1-2 ประโยค ตอบเป็นภาษาไทยที่งดงามแต่เข้าใจง่าย`;
+
+            const api_data = {
+                contents: [{ parts: [{ text: prompt_message }] }],
+                generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+                safetySettings: [
+                    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' }
+                ]
+            };
+
+            try {
+                const response = await fetch(api_url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(api_data)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Server responded with status ${response.status}: ${errorData.error?.message || 'Unknown error'}`);
+                }
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates[0].content.parts[0].text) {
+                    const interpretation = result.candidates[0].content.parts[0].text;
+                    Swal.fire({
+                        title: 'คำทำนายจาก Oracle Ref',
+                        html: '<div id="ai-interpretation-text"></div>',
+                        confirmButtonText: 'ขอบคุณสำหรับคำแนะนำ',
+                        customClass: { popup: 'oracle-theme', title: 'oracle-theme', htmlContainer: 'oracle-theme' },
+                        didOpen: () => {
+                            const textArea = document.getElementById('ai-interpretation-text');
+                            typewriterEffect(textArea, interpretation);
+                        }
+                    });
+                } else {
+                    throw new Error('AI ไม่สามารถสร้างคำทำนายได้ อาจเนื่องมาจากข้อจำกัดด้านความปลอดภัย');
+                }
+            } catch (error) {
+                console.error("AI interpretation error:", error);
+                Swal.fire('เกิดข้อผิดพลาด', `ไม่สามารถเชื่อมต่อกับ AI Oracle ได้: ${error.message}`, 'error');
+            }
+        }
+    }
+
+    if (shuffleButton) shuffleButton.addEventListener('click', handleShuffleClick);
+    if (confirmButton) confirmButton.addEventListener('click', () => {  
+        if (selectedCards.length === maxSelections) {
+            selectionScreen?.classList.add('hidden');
+            resultsScreen?.classList.remove('hidden');
+            renderResults(false);
+        }
+    });
+    if (cardGrid) {
+        cardGrid.addEventListener('click', (event) => {
+            const cardContainer = event.target.closest('.card-container');
+            if (cardContainer) {
+                const cardId = cardContainer.dataset.id;
+                if (cardId) openCardModal(cardId);
+            }
+        });
+    }
+    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeCardModal);
+    if (cardModalContainer) {
+        cardModalContainer.addEventListener('click', (event) => {
+            if (event.target === cardModalContainer) closeCardModal();
+        });
+    }
+    }
+    // --- Event Listeners for buttons ---
+    if (shuffleButton) shuffleButton.addEventListener('click', handleShuffleClick);
+   if (confirmButton) confirmButton.addEventListener('click', () => {
+       if (selectedCards.length === maxSelections) {
+           selectionScreen?.classList.add('hidden');
+           resultsScreen?.classList.remove('hidden');
+           renderResults(false);
+       }
+   });
+    if (cardGrid) {
+        cardGrid.addEventListener('click', (event) => {
+            const cardContainer = event.target.closest('.card-container');
+            if (cardContainer) {
+                const cardId = cardContainer.dataset.id;
+                if (cardId) openCardModal(cardId);
+            }
+        });
+    }
+    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeCardModal);
+    if (cardModalContainer) {
+        cardModalContainer.addEventListener('click', (event) => {
+            if (event.target === cardModalContainer) closeCardModal();
+        });
+    }
+
+    // Initialize the page
     initializePage();
-    setupEventListeners();
 });
