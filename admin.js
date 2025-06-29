@@ -103,27 +103,11 @@ function loadPackages() {
 }
 
 // --- DYNAMIC FORM ACTIONS ---
-/**
- * FIX #1: แก้ไขฟังก์ชัน addPackage
- * - เปลี่ยนจากการใช้ getElementById มาใช้ตัวแปร container ที่ประกาศไว้ด้านบนโดยตรง
- * - ทำให้หา container เจอแน่นอน และแก้ปัญหา error 'children' of null
- */
 function addPackage(type) {
     const newPackage = { id: createId(), name: 'แพ็กเกจใหม่', price: '', description: '' };
-    
-    let container;
-    if (type === 'mainPackages') {
-        container = mainPackagesContainer;
-    } else if (type === 'addOnPackages') {
-        container = addOnPackagesContainer;
-    }
-
-    if (container) {
-        const newIndex = container.children.length;
-        container.appendChild(createFormGroup(newPackage, type, newIndex));
-    } else {
-        console.error('ไม่พบ Container สำหรับ type:', type);
-    }
+    const container = document.getElementById(`${type.replace(/\[\d+\]/g, '')}-container`);
+    const newIndex = container.children.length;
+    container.appendChild(createFormGroup(newPackage, type, newIndex));
 }
 
 function addPackageItem(type) {
@@ -178,25 +162,15 @@ form.addEventListener('submit', (e) => {
             targetArray.push(pkg);
         });
     };
-    
-    /**
-     * FIX #2: แก้ไขฟังก์ชัน processNestedGroup
-     * - เปลี่ยน Selector ที่ใช้หา title และ description ให้ง่ายและตรงตัวมากขึ้น
-     * - ทำให้หา input/textarea เจอและอ่าน .value ได้ ไม่เกิด error 'value' of null
-     */
-    const processNestedGroup = (container, targetObject, type) => {
-        // จากเดิมที่ selector ซับซ้อน เปลี่ยนมาหา field ที่ต้องการโดยตรงจาก container
-        const formGroup = container.querySelector(`.form-group[data-type="${type}"]`);
-        if (!formGroup) return;
 
-        const titleInput = formGroup.querySelector('input[data-key="title"]');
-        const descInput = formGroup.querySelector('textarea[data-key="description"]');
-        
-        targetObject.title = titleInput ? titleInput.value : '';
-        targetObject.description = descInput ? descInput.value : '';
+    const processNestedGroup = (container, targetObject, type) => {
+        const titleInput = container.querySelector(`[data-type="${type}"] input[data-key="title"]`);
+        const descInput = container.querySelector(`[data-type="${type}"] textarea[data-key="description"]`);
+        targetObject.title = titleInput.value;
+        targetObject.description = descInput.value;
         targetObject.items = [];
         
-        formGroup.querySelectorAll(`[id="${type}-items-container"] .form-group`).forEach(group => {
+        container.querySelectorAll(`:scope [id="${type}-items-container"] .form-group`).forEach(group => {
             const item = { id: group.dataset.id };
             group.querySelectorAll('input, textarea').forEach(input => {
                  item[input.dataset.key] = input.value.replace(/\n/g, '\\n');
